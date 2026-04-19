@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useDebounce } from 'react-use'
 import './App.css'
 import Search from './components/Search'
 import Spinner from './components/Spinner'
@@ -22,12 +23,17 @@ function App() {
   const [error, setError] = useState('')
   const [movies, setMovies] = useState([])
   const [isLoading, setIsLoading] = useState(false)
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
 
-  const fetchMovies = async () => {
+  useDebounce(() => {
+    setDebouncedSearchTerm(searchTerm)
+  }, 500, [searchTerm])
+
+  const fetchMovies = async (query) => {
     setIsLoading(true)
     setError('')
   try  {
-    const endpoint =`${API_BASE_URL}/discover/movie?sort_by=popularity.desc`
+    const endpoint = query ? `${API_BASE_URL}/search/movie?query=${encodeURIComponent(query)}` : `${API_BASE_URL}/discover/movie?sort_by=popularity.desc`
     const response = await fetch(endpoint, API_OPTIONS)
 
     if (!response.ok) {
@@ -43,8 +49,8 @@ function App() {
 }
 
 useEffect(() => {
-  fetchMovies()
-}, [])
+  fetchMovies(debouncedSearchTerm)
+}, [debouncedSearchTerm])
 
   return (
     <main className="min-h-screen w-full bg-[url('/hero-bg.png')] bg-fixed bg-cover bg-center bg-no-repeat flex flex-col items-center">
