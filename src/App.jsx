@@ -4,6 +4,7 @@ import './App.css'
 import Search from './components/Search'
 import Spinner from './components/Spinner'
 import MovieCard from './components/MovieCard'
+import { updateSearchCount, getTrendingMovies } from './appwrite'
 
 const API_KEY = import.meta.env.VITE_TMDB_API_KEY
 
@@ -20,10 +21,13 @@ const API_OPTIONS = {
 
 function App() {
   const [searchTerm, setSearchTerm] = useState('')
-  const [error, setError] = useState('')
-  const [movies, setMovies] = useState([])
-  const [isLoading, setIsLoading] = useState(false)
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
+
+  const [movies, setMovies] = useState([])
+  const [error, setError] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+
+  const [trendingMovies, setTrendingMovies] = useState([])
 
   useDebounce(() => {
     setDebouncedSearchTerm(searchTerm)
@@ -41,6 +45,10 @@ function App() {
     }
     const data = await response.json()
     setMovies(data.results || [])
+
+    if(query && data.results.length > 0) {
+      await updateSearchCount(query, data.results[0]);
+    }
   } catch (error) {
     setError(error.message)
   } finally {
@@ -48,9 +56,23 @@ function App() {
   }
 }
 
+const loadTrendingMovies = async () => {
+    try {
+      const movies = await getTrendingMovies();
+
+      setTrendingMovies(movies);
+    } catch (error) {
+      console.error(`Error fetching trending movies: ${error}`);
+    }
+  }
+
 useEffect(() => {
   fetchMovies(debouncedSearchTerm)
 }, [debouncedSearchTerm])
+
+useEffect(() => {
+  loadTrendingMovies()
+}, [])
 
   return (
     <main className="min-h-screen w-full bg-[url('/hero-bg.png')] bg-fixed bg-cover bg-center bg-no-repeat flex flex-col items-center">
@@ -68,8 +90,29 @@ useEffect(() => {
 
       </div>
 
+      {trendingMovies.length > 0 && (
+        <section className="trending w-full max-w-7xl mx-auto px-8 py-10 mt-10">
+          <h2 className="text-white text-3xl font-bold mb-6">Trending Movies</h2>
+          
+          <ul className="flex flex-row gap-5 overflow-x-auto pb-4 custom-scrollbar">
+            {trendingMovies.map((movie, index) => (
+              <li key={movie.$id} className="min-w-[200px] flex flex-row items-center gap-4">
+                <p className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-b from-blue-400 to-purple-600 opacity-50">
+                  {index + 1}
+                </p>
+                <img 
+                  src={movie.poster_url} 
+                  alt={movie.searchTerm} 
+                  className="w-28 h-40 object-cover rounded-xl shadow-lg shadow-black/50"
+                />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <section className='all-movies py-24 px-8 flex flex-col items-center w-full max-w-7xl mx-auto'>
-          <h2 className='text-white text-3xl font-bold mb-10 self-start'>Trending Movies</h2>
+          <h2 className='text-white text-3xl font-bold mb-10 self-start'>Movies Suggestions</h2>
           {isLoading ? 
           (<Spinner />)
           :
